@@ -1,0 +1,67 @@
+[gd_scene format=3 uid="uid://belbrv6l3fkk2"]
+
+[ext_resource type="Texture2D" uid="uid://b8knarbmytumr" path="res://assets/enemies/enemyFlyingAlt_1.png" id="1_3yqyl"]
+[ext_resource type="Texture2D" uid="uid://c8gj70mgtsspn" path="res://assets/enemies/enemyFlyingAlt_2.png" id="2_wujgv"]
+[ext_resource type="Texture2D" uid="uid://c6spa57upvrrd" path="res://assets/enemies/enemySwimming_1.png" id="3_hb8ge"]
+[ext_resource type="Texture2D" uid="uid://cxtd0nppfg3ot" path="res://assets/enemies/enemySwimming_2.png" id="4_e1ltt"]
+[ext_resource type="Texture2D" uid="uid://m10f4y4ix4au" path="res://assets/enemies/enemyWalking_1.png" id="5_dxifv"]
+[ext_resource type="Texture2D" uid="uid://dd5s0i348mvds" path="res://assets/enemies/enemyWalking_2.png" id="6_pwjut"]
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_n0g06"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("1_3yqyl")
+}, {
+"duration": 1.0,
+"texture": ExtResource("2_wujgv")
+}],
+"loop": true,
+"name": &"flying",
+"speed": 3.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("3_hb8ge")
+}, {
+"duration": 1.0,
+"texture": ExtResource("4_e1ltt")
+}],
+"loop": true,
+"name": &"swimming",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("5_dxifv")
+}, {
+"duration": 1.0,
+"texture": ExtResource("6_pwjut")
+}],
+"loop": true,
+"name": &"walking",
+"speed": 3.0
+}]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_ar8e5"]
+radius = 47.0
+height = 128.0
+
+[node name="EnemyBase" type="EnemyBase" unique_id=627518969]
+collision_mask = 2
+gravity_scale = 0.0
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=1537448648]
+scale = Vector2(0.75, 0.75)
+sprite_frames = SubResource("SpriteFrames_n0g06")
+animation = &"swimming"
+frame_progress = 0.58839846
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1667712938]
+rotation = 1.5707964
+scale = Vector2(0.75, 0.75)
+shape = SubResource("CapsuleShape2D_ar8e5")
+
+[node name="VisibleOnScreenNotifier2D" type="VisibleOnScreenNotifier2D" parent="." unique_id=1077287509]
+scale = Vector2(0.75, 0.75)
+rect = Rect2(-35, -33, 81, 67)

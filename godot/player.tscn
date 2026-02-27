@@ -35,10 +35,13 @@ radius = 53.0
 height = 136.0
 
 [node name="PlayerBase" type="PlayerBase" unique_id=1850765519]
+collision_layer = 2
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=1036326]
+scale = Vector2(0.75, 0.75)
 sprite_frames = SubResource("SpriteFrames_ahqfo")
 animation = &"up"
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1834366742]
+scale = Vector2(0.75, 0.75)
 shape = SubResource("CapsuleShape2D_o02vu")
