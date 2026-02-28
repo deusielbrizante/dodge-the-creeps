@@ -1,18 +1,22 @@
+use core::fmt;
+
 use godot::{
-    classes::{AnimatedSprite2D, Area2D, CollisionShape2D, Engine, IArea2D, Input},
+    classes::{AnimatedSprite2D, Area2D, CollisionShape2D, Engine, GpuParticles2D, IArea2D, Input},
     prelude::*,
 };
 
 enum PlayerChild {
     AnimatedSprite2D,
     CollisionShape2D,
+    Particles2D,
 }
 
-impl PlayerChild {
-    fn as_str(&self) -> &'static str {
+impl fmt::Display for PlayerChild {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            PlayerChild::AnimatedSprite2D => "AnimatedSprite2D",
-            PlayerChild::CollisionShape2D => "CollisionShape2D",
+            PlayerChild::AnimatedSprite2D => write!(f, "AnimatedSprite2D"),
+            PlayerChild::CollisionShape2D => write!(f, "CollisionShape2D"),
+            PlayerChild::Particles2D => write!(f, "Rastro"),
         }
     }
 }
@@ -27,6 +31,7 @@ pub struct PlayerBase {
     screen_size: Vector2,
     animated_sprite: OnReady<Gd<AnimatedSprite2D>>,
     collision_shape: OnReady<Gd<CollisionShape2D>>,
+    particles: OnReady<Gd<GpuParticles2D>>,
 }
 
 #[godot_api]
@@ -36,30 +41,41 @@ impl IArea2D for PlayerBase {
             base,
             speed: 400,
             screen_size: Vector2::ZERO,
-            animated_sprite: OnReady::from_node(PlayerChild::AnimatedSprite2D.as_str()),
-            collision_shape: OnReady::from_node(PlayerChild::CollisionShape2D.as_str()),
+            animated_sprite: OnReady::from_node(&PlayerChild::AnimatedSprite2D.to_string()),
+            collision_shape: OnReady::from_node(&PlayerChild::CollisionShape2D.to_string()),
+            particles: OnReady::from_node(&PlayerChild::Particles2D.to_string()),
         }
     }
 
     fn enter_tree(&mut self) {
         self.base()
-            .try_get_node_as::<AnimatedSprite2D>(PlayerChild::AnimatedSprite2D.as_str())
+            .try_get_node_as::<AnimatedSprite2D>(&PlayerChild::AnimatedSprite2D.to_string())
             .unwrap_or_else(|| {
                 let mut animated_sprite = AnimatedSprite2D::new_alloc();
-                animated_sprite.set_name(PlayerChild::AnimatedSprite2D.as_str());
+                animated_sprite.set_name(&PlayerChild::AnimatedSprite2D.to_string());
                 self.base_mut().add_child(&animated_sprite);
                 animated_sprite.set_owner(self.base().to_godot());
                 animated_sprite
             });
 
         self.base()
-            .try_get_node_as::<CollisionShape2D>(PlayerChild::CollisionShape2D.as_str())
+            .try_get_node_as::<CollisionShape2D>(&PlayerChild::CollisionShape2D.to_string())
             .unwrap_or_else(|| {
                 let mut collision_shape = CollisionShape2D::new_alloc();
-                collision_shape.set_name(PlayerChild::CollisionShape2D.as_str());
+                collision_shape.set_name(&PlayerChild::CollisionShape2D.to_string());
                 self.base_mut().add_child(&collision_shape);
                 collision_shape.set_owner(self.base().to_godot());
                 collision_shape
+            });
+
+        self.base()
+            .try_get_node_as(&PlayerChild::Particles2D.to_string())
+            .unwrap_or_else(|| {
+                let mut particles = GpuParticles2D::new_alloc();
+                particles.set_name(&PlayerChild::Particles2D.to_string());
+                self.base_mut().add_child(&particles);
+                particles.set_owner(self.base().to_godot());
+                particles
             });
     }
 
@@ -126,8 +142,10 @@ impl PlayerBase {
 
         if velocity.length() > 0f32 {
             self.animated_sprite.play();
+            self.particles.set_emitting(true);
         } else {
             self.animated_sprite.stop();
+            self.particles.set_emitting(false);
         }
     }
 

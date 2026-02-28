@@ -1,7 +1,12 @@
+use core::fmt;
+
 use godot::{
-    classes::{Button, CanvasLayer, ICanvasLayer, Label, Timer},
+    classes::{
+        Button, CanvasLayer, ICanvasLayer, InputEventAction, Label, Shortcut, Timer,
+        class_macros::private::virtuals::Os::array,
+    },
     meta::ToGodot,
-    obj::{Base, Gd, NewAlloc, OnReady, WithBaseField, WithUserSignals},
+    obj::{Base, Gd, NewAlloc, NewGd, OnReady, WithBaseField, WithUserSignals},
     prelude::{GodotClass, godot_api},
 };
 
@@ -12,13 +17,13 @@ enum HudChild {
     StartButton,
 }
 
-impl HudChild {
-    fn as_str(&self) -> &'static str {
+impl fmt::Display for HudChild {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            HudChild::ScoreLabel => "ScoreLabel",
-            HudChild::MessageLabel => "MessageLabel",
-            HudChild::MessageTimer => "MessageTimer",
-            HudChild::StartButton => "StartButton",
+            HudChild::ScoreLabel => write!(f, "ScoreLabel"),
+            HudChild::MessageLabel => write!(f, "MessageLabel"),
+            HudChild::MessageTimer => write!(f, "MessageTimer"),
+            HudChild::StartButton => write!(f, "StartButton"),
         }
     }
 }
@@ -39,49 +44,49 @@ impl ICanvasLayer for HUDBase {
     fn init(base: Base<Self::Base>) -> Self {
         Self {
             base,
-            score_label: OnReady::from_node(HudChild::ScoreLabel.as_str()),
-            message_label: OnReady::from_node(HudChild::MessageLabel.as_str()),
-            message_timer: OnReady::from_node(HudChild::MessageTimer.as_str()),
-            start_button: OnReady::from_node(HudChild::StartButton.as_str()),
+            score_label: OnReady::from_node(&HudChild::ScoreLabel.to_string()),
+            message_label: OnReady::from_node(&HudChild::MessageLabel.to_string()),
+            message_timer: OnReady::from_node(&HudChild::MessageTimer.to_string()),
+            start_button: OnReady::from_node(&HudChild::StartButton.to_string()),
         }
     }
 
     fn enter_tree(&mut self) {
         self.base()
-            .try_get_node_as::<Label>(HudChild::ScoreLabel.as_str())
+            .try_get_node_as::<Label>(&HudChild::ScoreLabel.to_string())
             .unwrap_or_else(|| {
                 let mut label = Label::new_alloc();
-                label.set_name(HudChild::ScoreLabel.as_str());
+                label.set_name(&HudChild::ScoreLabel.to_string());
                 self.base_mut().add_child(&label);
                 label.set_owner(self.base().to_godot());
                 label
             });
 
         self.base()
-            .try_get_node_as::<Label>(HudChild::MessageLabel.as_str())
+            .try_get_node_as::<Label>(&HudChild::MessageLabel.to_string())
             .unwrap_or_else(|| {
                 let mut label = Label::new_alloc();
-                label.set_name(HudChild::MessageLabel.as_str());
+                label.set_name(&HudChild::MessageLabel.to_string());
                 self.base_mut().add_child(&label);
                 label.set_owner(self.base().to_godot());
                 label
             });
 
         self.base()
-            .try_get_node_as::<Timer>(HudChild::MessageTimer.as_str())
+            .try_get_node_as::<Timer>(&HudChild::MessageTimer.to_string())
             .unwrap_or_else(|| {
                 let mut timer = Timer::new_alloc();
-                timer.set_name(HudChild::MessageTimer.as_str());
+                timer.set_name(&HudChild::MessageTimer.to_string());
                 self.base_mut().add_child(&timer);
                 timer.set_owner(self.base().to_godot());
                 timer
             });
 
         self.base()
-            .try_get_node_as::<Button>(HudChild::StartButton.as_str())
+            .try_get_node_as::<Button>(&HudChild::StartButton.to_string())
             .unwrap_or_else(|| {
                 let mut button = Button::new_alloc();
-                button.set_name(HudChild::StartButton.as_str());
+                button.set_name(&HudChild::StartButton.to_string());
                 self.base_mut().add_child(&button);
                 button.set_owner(self.base().to_godot());
                 button
@@ -93,6 +98,20 @@ impl ICanvasLayer for HUDBase {
             .signals()
             .pressed()
             .connect_other(self, Self::on_start_button_pressed);
+
+        let input_start = {
+            let input_action = {
+                let mut input = InputEventAction::new_gd();
+                input.set_action("ui_select");
+                input
+            };
+
+            let mut shortcut = Shortcut::new_gd();
+            shortcut.set_events(&array![&input_action.to_variant()]);
+            shortcut
+        };
+
+        self.start_button.set_shortcut(input_start.to_godot());
 
         self.message_timer
             .signals()

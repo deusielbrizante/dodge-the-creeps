@@ -1,7 +1,10 @@
+use core::fmt;
 use std::f64::consts::PI;
 
 use godot::{
-    classes::{Marker2D, Path2D, PathFollow2D, ResourceLoader, Timer},
+    classes::{
+        AudioStreamPlayer2D, ColorRect, Marker2D, Path2D, PathFollow2D, ResourceLoader, Timer,
+    },
     global::{randf, randf_range, randi_range, randomize},
     prelude::*,
 };
@@ -17,19 +20,25 @@ enum MainSceneChild {
     ScoreTimer,
     StarterTimer,
     Player,
+    Background,
+    Music,
+    SoundDeath,
 }
 
-impl MainSceneChild {
-    fn as_str(&self) -> &'static str {
+impl fmt::Display for MainSceneChild {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            MainSceneChild::HUD => "HUD",
-            MainSceneChild::SpawnEnemy => "PathEnemy/SpawnEnemy",
-            MainSceneChild::PathEnemy => "PathEnemy",
-            MainSceneChild::StarterPosition => "StarterPosition",
-            MainSceneChild::EnemyTimer => "EnemyTimer",
-            MainSceneChild::ScoreTimer => "ScoreTimer",
-            MainSceneChild::StarterTimer => "StarterTimer",
-            MainSceneChild::Player => "Player",
+            MainSceneChild::HUD => write!(f, "HUD"),
+            MainSceneChild::SpawnEnemy => write!(f, "SpawnEnemy"),
+            MainSceneChild::PathEnemy => write!(f, "PathEnemy"),
+            MainSceneChild::StarterPosition => write!(f, "StarterPosition"),
+            MainSceneChild::EnemyTimer => write!(f, "EnemyTimer"),
+            MainSceneChild::ScoreTimer => write!(f, "ScoreTimer"),
+            MainSceneChild::StarterTimer => write!(f, "StarterTimer"),
+            MainSceneChild::Player => write!(f, "Player"),
+            MainSceneChild::Background => write!(f, "BG"),
+            MainSceneChild::Music => write!(f, "Music"),
+            MainSceneChild::SoundDeath => write!(f, "SoundDeath"),
         }
     }
 }
@@ -50,6 +59,9 @@ pub struct MainScene {
     starter_timer: OnReady<Gd<Timer>>,
     player: OnReady<Gd<PlayerBase>>,
     hud: OnReady<Gd<HUDBase>>,
+    color_rect: OnReady<Gd<ColorRect>>,
+    music: OnReady<Gd<AudioStreamPlayer2D>>,
+    sound_death: OnReady<Gd<AudioStreamPlayer2D>>,
 }
 
 #[godot_api]
@@ -59,21 +71,38 @@ impl INode for MainScene {
             base,
             score: 0,
             enemy: None,
-            path_enemy: OnReady::from_node(MainSceneChild::PathEnemy.as_str()),
-            path_follow: OnReady::from_node(MainSceneChild::SpawnEnemy.as_str()),
-            starter_position: OnReady::from_node(MainSceneChild::StarterPosition.as_str()),
-            enemy_timer: OnReady::from_node(MainSceneChild::EnemyTimer.as_str()),
-            score_timer: OnReady::from_node(MainSceneChild::ScoreTimer.as_str()),
-            starter_timer: OnReady::from_node(MainSceneChild::StarterTimer.as_str()),
-            player: OnReady::from_node(MainSceneChild::Player.as_str()),
-            hud: OnReady::from_node(MainSceneChild::HUD.as_str()),
+            path_enemy: OnReady::from_node(&MainSceneChild::PathEnemy.to_string()),
+            path_follow: OnReady::from_node(&format!(
+                "{}/{}",
+                MainSceneChild::PathEnemy.to_string(),
+                MainSceneChild::SpawnEnemy.to_string()
+            )),
+            starter_position: OnReady::from_node(&MainSceneChild::StarterPosition.to_string()),
+            enemy_timer: OnReady::from_node(&MainSceneChild::EnemyTimer.to_string()),
+            score_timer: OnReady::from_node(&MainSceneChild::ScoreTimer.to_string()),
+            starter_timer: OnReady::from_node(&MainSceneChild::StarterTimer.to_string()),
+            player: OnReady::from_node(&MainSceneChild::Player.to_string()),
+            hud: OnReady::from_node(&MainSceneChild::HUD.to_string()),
+            color_rect: OnReady::from_node(&MainSceneChild::Background.to_string()),
+            music: OnReady::from_node(&MainSceneChild::Music.to_string()),
+            sound_death: OnReady::from_node(&MainSceneChild::SoundDeath.to_string()),
         }
     }
 
     fn enter_tree(&mut self) {
+        self.base()
+            .try_get_node_as::<ColorRect>(&MainSceneChild::Background.to_string())
+            .unwrap_or_else(|| {
+                let mut background = ColorRect::new_alloc();
+                background.set_name(&MainSceneChild::Background.to_string());
+                self.base_mut().add_child(&background);
+                background.set_owner(self.base().to_godot());
+                background
+            });
+
         self
             .base()
-            .try_get_node_as::<PlayerBase>(MainSceneChild::Player.as_str())
+            .try_get_node_as::<PlayerBase>(&MainSceneChild::Player.to_string())
             .unwrap_or_else(|| {
                 let mut loader = ResourceLoader::singleton();
 
@@ -84,7 +113,7 @@ impl INode for MainScene {
 
                 let mut player_instance = scene.try_instantiate_as::<PlayerBase>().expect("Falha ao instanciar player");
 
-                player_instance.set_name(MainSceneChild::Player.as_str());
+                player_instance.set_name(&MainSceneChild::Player.to_string());
                 self.base_mut().add_child(&player_instance);
                 player_instance.set_owner(self.base().to_godot());
 
@@ -93,7 +122,7 @@ impl INode for MainScene {
 
         self
             .base()
-            .try_get_node_as::<HUDBase>(MainSceneChild::HUD.as_str())
+            .try_get_node_as::<HUDBase>(&MainSceneChild::HUD.to_string())
             .unwrap_or_else(|| {
                 let mut loader = ResourceLoader::singleton();
                 let scene = loader
@@ -102,7 +131,7 @@ impl INode for MainScene {
                     .cast::<PackedScene>();
 
                 let mut hud_instance = scene.try_instantiate_as::<HUDBase>().expect("Falha ao instanciar o HUD");
-                hud_instance.set_name(MainSceneChild::HUD.as_str());
+                hud_instance.set_name(&MainSceneChild::HUD.to_string());
                 self.base_mut().add_child(&hud_instance);
                 hud_instance.set_owner(self.base().to_godot());
 
@@ -110,40 +139,40 @@ impl INode for MainScene {
             });
 
         self.base()
-            .try_get_node_as::<Timer>(MainSceneChild::StarterTimer.as_str())
+            .try_get_node_as::<Timer>(&MainSceneChild::StarterTimer.to_string())
             .unwrap_or_else(|| {
                 let mut timer = Timer::new_alloc();
-                timer.set_name(MainSceneChild::StarterTimer.as_str());
+                timer.set_name(&MainSceneChild::StarterTimer.to_string());
                 self.base_mut().add_child(&timer);
                 timer.set_owner(self.base().to_godot());
                 timer
             });
 
         self.base()
-            .try_get_node_as::<Timer>(MainSceneChild::ScoreTimer.as_str())
+            .try_get_node_as::<Timer>(&MainSceneChild::ScoreTimer.to_string())
             .unwrap_or_else(|| {
                 let mut timer = Timer::new_alloc();
-                timer.set_name(MainSceneChild::ScoreTimer.as_str());
+                timer.set_name(&MainSceneChild::ScoreTimer.to_string());
                 self.base_mut().add_child(&timer);
                 timer.set_owner(self.base().to_godot());
                 timer
             });
 
         self.base()
-            .try_get_node_as::<Timer>(MainSceneChild::EnemyTimer.as_str())
+            .try_get_node_as::<Timer>(&MainSceneChild::EnemyTimer.to_string())
             .unwrap_or_else(|| {
                 let mut timer = Timer::new_alloc();
-                timer.set_name(MainSceneChild::EnemyTimer.as_str());
+                timer.set_name(&MainSceneChild::EnemyTimer.to_string());
                 self.base_mut().add_child(&timer);
                 timer.set_owner(self.base().to_godot());
                 timer
             });
 
         self.base()
-            .try_get_node_as::<Marker2D>(MainSceneChild::StarterPosition.as_str())
+            .try_get_node_as::<Marker2D>(&MainSceneChild::StarterPosition.to_string())
             .unwrap_or_else(|| {
                 let mut marker = Marker2D::new_alloc();
-                marker.set_name(MainSceneChild::StarterPosition.as_str());
+                marker.set_name(&MainSceneChild::StarterPosition.to_string());
                 self.base_mut().add_child(&marker);
                 marker.set_owner(self.base().to_godot());
                 marker
@@ -151,24 +180,45 @@ impl INode for MainScene {
 
         let mut path_enemy = self
             .base()
-            .try_get_node_as::<Path2D>(MainSceneChild::PathEnemy.as_str())
+            .try_get_node_as::<Path2D>(&MainSceneChild::PathEnemy.to_string())
             .unwrap_or_else(|| {
                 let mut path = Path2D::new_alloc();
-                path.set_name(MainSceneChild::PathEnemy.as_str());
+                path.set_name(&MainSceneChild::PathEnemy.to_string());
                 self.base_mut().add_child(&path);
                 path.set_owner(self.base().to_godot());
-
                 path
             });
 
-        path_enemy
-            .try_get_node_as::<PathFollow2D>(MainSceneChild::SpawnEnemy.as_str())
+        if path_enemy.is_instance_valid() {
+            path_enemy
+                .try_get_node_as::<PathFollow2D>(&MainSceneChild::SpawnEnemy.to_string())
+                .unwrap_or_else(|| {
+                    let mut path_follow = PathFollow2D::new_alloc();
+                    path_follow.set_name(&MainSceneChild::SpawnEnemy.to_string());
+                    path_enemy.add_child(&path_follow);
+                    path_follow.set_owner(self.base().to_godot());
+                    path_follow
+                });
+        }
+
+        self.base()
+            .try_get_node_as::<AudioStreamPlayer2D>(&MainSceneChild::Music.to_string())
             .unwrap_or_else(|| {
-                let mut path_follow = PathFollow2D::new_alloc();
-                path_follow.set_name(MainSceneChild::SpawnEnemy.as_str());
-                path_enemy.add_child(&path_follow);
-                path_follow.set_owner(self.base().to_godot());
-                path_follow
+                let mut audio = AudioStreamPlayer2D::new_alloc();
+                audio.set_name(&MainSceneChild::Music.to_string());
+                self.base_mut().add_child(&audio);
+                audio.set_owner(self.base().to_godot());
+                audio
+            });
+
+        self.base()
+            .try_get_node_as::<AudioStreamPlayer2D>(&MainSceneChild::SoundDeath.to_string())
+            .unwrap_or_else(|| {
+                let mut audio = AudioStreamPlayer2D::new_alloc();
+                audio.set_name(&MainSceneChild::SoundDeath.to_string());
+                self.base_mut().add_child(&audio);
+                audio.set_owner(self.base().to_godot());
+                audio
             });
     }
 
@@ -208,6 +258,8 @@ impl MainScene {
     fn game_over(&mut self) {
         self.score_timer.stop();
         self.enemy_timer.stop();
+        self.music.stop();
+        self.sound_death.play();
 
         let hud = self.hud.clone();
         godot::task::spawn(async move {
@@ -262,5 +314,6 @@ impl MainScene {
         self.starter_timer.start();
         self.hud.bind_mut().show_message("Prepare-se");
         self.hud.bind_mut().update_score(self.score);
+        self.music.play();
     }
 }
